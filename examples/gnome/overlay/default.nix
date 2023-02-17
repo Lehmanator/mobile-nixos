@@ -2,11 +2,11 @@ self: super:
 {
     gnome = super.gnome.overrideScope' (gself: gsuper: {
       gnome-shell = gsuper.gnome-shell.overrideAttrs (old: {
-         version = "43.0-mobile";
+         version = "43.2-mobile";
          src = super.fetchgit {
            url = "https://gitlab.gnome.org/verdre/gnome-shell.git";
-           rev = "4ef0db259a1815d00656c3adab89df14f272067e";
-           sha256 = "pIBJFyg1XDVrZdPhbDYdSGrDEwa1xTT4gSnF7z7tLpw=";
+           rev = "0c42fe4cc05c54a737400973cc5dc8ff9ba51bca";
+           sha256 = "NS4/y7xKIexa76Ltr/Rniflb7zTLEboKXlVe75+U/sk=";
          };
          postPatch = ''
            patchShebangs src/data-to-c.pl
@@ -23,18 +23,18 @@ self: super:
       });
 
       mutter = gsuper.mutter.overrideAttrs (old: {
-          version = "43.0-mobile";
+          version = "43.2-mobile";
           src = super.fetchgit {
             url = "https://gitlab.gnome.org/verdre/mutter.git";
-            rev = "4e6674075cfd7e644da14837a661ed3a1fb0395b";
-            sha256 = "AgisT14I22q8VEkc7IionZmZi89KMEHBVwQLVdL22Ck=";
+            rev = "585802e5afeb268251dbb202f7d108fdf4f51da4";
+            sha256 = "DaYTvPbRb3ri59jzv2OU20Y4fpZ22fxXq2G5qRKALZw=";
           };
-          patches = [ ./sysprof.patch ];
           buildInputs = old.buildInputs ++ [
             super.gtk4
           ];
           outputs = [ "out" "dev" "man" ];
           postFixup = '' '';
+          patches = [];
       });
     });
 }

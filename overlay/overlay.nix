@@ -96,14 +96,6 @@ in
     # All that follows will have to be cleaned and then upstreamed.
     #
 
-    vboot_reference = super.vboot_reference.overrideAttrs(attrs: {
-      # https://github.com/NixOS/nixpkgs/pull/69039
-      postPatch = ''
-        substituteInPlace Makefile \
-          --replace "ar qc" '${self.stdenv.cc.bintools.targetPrefix}ar qc'
-      '';
-    });
-
     ubootTools = super.ubootTools.overrideAttrs({ buildInputs ? [], patches ? [], ... }: {
       # Needed for cross-compiling ubootTools
       buildInputs = buildInputs ++ [
