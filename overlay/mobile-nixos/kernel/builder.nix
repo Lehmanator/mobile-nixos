@@ -559,8 +559,11 @@ stdenv.mkDerivation (inputArgs // {
           cat ${writeShellScript "nconf-cfg.sh" ''
             export PKG_CONFIG_PATH="${buildPackages.ncurses6.dev}/lib/pkgconfig"
             PKGS="ncursesw menuw panelw"
-            echo cflags=\"$(pkg-config --cflags $PKGS)\"
-            echo libs=\"-L $(pkg-config --variable=libdir ncursesw) $(pkg-config --libs $PKGS)\"
+            cflags=$1
+            libs=$2
+            pkg-config --cflags $PKGS > $cflags
+            pkg-config --libs $PKGS > $libs
+            echo "-L $(pkg-config --variable=libdir ncursesw)" >> $libs
           ''} > scripts/kconfig/nconf-cfg.sh
         fi
 
