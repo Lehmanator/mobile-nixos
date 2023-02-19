@@ -5,14 +5,14 @@
 }:
 
 mobile-nixos.kernel-builder rec {
-  version = "6.2.0_dev";
+  version = "6.2.0-rc3";
   configfile = ./config.aarch64;
 
   src = fetchFromGitLab {
     owner = "sdm845-mainline";
     repo = "linux";
-    rev = "e09d46cba4562a4bc6e091553a8027a805e5c739"; # sdm845/sdm845-6.1.0
-    hash = "sha256-gtk2D/zNfAjvupQzMFo7d6CDBCAbovVbu6NBmp8B4lU=";
+    rev = "sdm845-6.2.0_rc3"; # sdm845/sdm845-6.1.0
+    hash = "sha256-b+TfNaFwXN38OcZ/q69beLv4sjLTHhJpp8eRjxcgOZY=";
   };
 
   isModular = false;
