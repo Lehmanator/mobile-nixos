@@ -8,7 +8,7 @@ let
     owner = "sdm845-mainline";
     repo = "firmware-oneplus-sdm845";
     rev = "9dd812bbdf0ccad819c273fea9466152cbf3e71b";
-    #sha256 = "sha256-7CaXWOpao+vuFA7xknzbLml2hxTlmuzFCEM99aLD2uk=";
+    sha256 = "sha256-bad9CqgRoXx8AyVrGycKQRRcPpPnQy2TsZRBw6u1eIY=";
   };
 in
 runCommand "oneplus-sdm845-firmware"
