@@ -14,7 +14,7 @@
                 owner = "sdm845-mainline";
                 repo = "alsa-ucm-conf";
                 rev = "08cbf26e684f5609b3839870887c81be378712f6"; # master
-                #sha256 = "sha256-CgAPg0UUAJUE1gD59l2GNDx3h9crAato6O/dDJpRwiY=";
+                sha256 = "sha256-ZvknDKjcLyYwlFuqLTOE91GAQM7RykL8flGgYunttS8=";
               };
             } ''
             mkdir -p $out/share/
