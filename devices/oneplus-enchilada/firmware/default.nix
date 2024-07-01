@@ -8,7 +8,7 @@ let
     owner = "sdm845-mainline";
     repo = "firmware-oneplus-sdm845";
     rev = "176ca713448c5237a983fb1f158cf3a5c251d775";
-    hash = lib.fakeHash;
+    hash = "sha256-ZrBvYO+MY0tlamJngdwhCsI1qpA/2FXoyEys5FAYLj4=";
   };
 in runCommand "oneplus-sdm845-firmware" {
   inherit baseFw;
