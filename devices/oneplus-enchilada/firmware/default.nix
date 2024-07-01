@@ -7,8 +7,8 @@ let
   baseFw = fetchFromGitLab {
     owner = "sdm845-mainline";
     repo = "firmware-oneplus-sdm845";
-    rev = "dc9c77f220d104d7224c03fcbfc419a03a58765e";
-    sha256 = "sha256-jrbWIS4T9HgBPYOV2MqPiRQCxGMDEfQidKw9Jn5pgBI=";
+    rev = "176ca713448c5237a983fb1f158cf3a5c251d775";
+    hash = lib.fakeHash;
   };
 in runCommand "oneplus-sdm845-firmware" {
   inherit baseFw;
