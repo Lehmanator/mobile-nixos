@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (lib) mkIf mkMerge mkOption types;
+  inherit (lib) mkMerge mkOption types;
   cfg = config.mobile.hardware.socs;
 in
 {
@@ -10,19 +10,19 @@ in
     generic-x86_64.enable = mkOption {
       type = types.bool;
       default = false;
-      description = "Enable when system is a generic x86_64";
+      description = lib.mdDoc "Enable when system is a generic x86_64";
       internal = true;
     };
     generic-aarch64.enable = mkOption {
       type = types.bool;
       default = false;
-      description = "Enable when system is a generic AArch64";
+      description = lib.mdDoc "Enable when system is a generic AArch64";
       internal = true;
     };
     generic-armv7l.enable = mkOption {
       type = types.bool;
       default = false;
-      description = "Enable when system is a generic armv7l";
+      description = lib.mdDoc "Enable when system is a generic armv7l";
       internal = true;
     };
   };

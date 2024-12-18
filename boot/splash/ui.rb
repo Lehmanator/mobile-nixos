@@ -11,14 +11,35 @@ module Kernel
 end
 
 class UI
+  BGRT_PATH = "/sys/firmware/acpi/bgrt/image"
+
+  FG_COLOR = Configuration["splash"] && Configuration["splash"]["foreground"]
+  FG_COLOR = FG_COLOR.to_i(16) if FG_COLOR.is_a?(String)
+  FG_COLOR ||= 0xFFFFFFFF
+  BG_COLOR = Configuration["splash"] && Configuration["splash"]["background"]
+  BG_COLOR = BG_COLOR.to_i(16) if BG_COLOR.is_a?(String)
+  BG_COLOR ||= 0xFF000000
+  THEME = Configuration["splash"] && Configuration["splash"]["theme"]
+  THEME ||= "night"
+
   attr_reader :screen
   attr_reader :progress_bar
   attr_reader :ask_identifier
 
   # As this is not using BaseWindow, LVGUI::init isn't handled for us.
-  LVGUI.init(theme: :night, assets_path: "boot-splash/assets")
+  LVGUI.init(theme: THEME.to_sym, assets_path: "boot-splash/assets")
+
+  def has_bgrt?()
+    File.exist?(BGRT_PATH)
+  end
+
+  def use_bgrt?()
+    has_bgrt?() && Configuration["splash"]["useBGRT"]
+  end
 
   def initialize()
+    @vertical_offset = 0
+
     add_screen
     add_page
     # Biggest of horizontal or vertical; a percent.
@@ -31,14 +52,15 @@ class UI
     add_textarea
     add_keyboard
 
-    add_cover # last
+    add_cover
+    add_cover_bgrt
   end
 
   def add_label()
     @label = LVGL::LVLabel.new(@page)
     @label.get_style(LVGL::LABEL_STYLE::MAIN).dup.tap do |style|
       @label.set_style(LVGL::LABEL_STYLE::MAIN, style)
-      style.text_color = 0xFFFFFFFF
+      style.text_color = FG_COLOR
     end
     @label.set_long_mode(LVGL::LABEL_LONG::BREAK)
     @label.set_align(LVGL::LABEL_ALIGN::CENTER)
@@ -49,21 +71,53 @@ class UI
   end
 
   def add_logo()
-    file = LVGL::Hacks.get_asset_path("logo.svg")
-
-    if @page.get_height > @page.get_width
-      # 80% of the width
-      file = "#{file}?width=#{(@page.get_width * 0.8).to_i}"
+    if use_bgrt?()
+      # Work around the extension sniffing from the image decoders...
+      File.symlink(BGRT_PATH, "/bgrt.bmp") unless File.exist?("/bgrt.bmp")
+      file = "/bgrt.bmp"
     else
-      # 15% of the height
-      file = "#{file}?height=#{(@page.get_height * 0.15).to_i}"
+      file = LVGL::Hacks.get_asset_path("logo.svg")
+
+      if @page.get_height > @page.get_width
+        # 80% of the width
+        file = "#{file}?width=#{(@page.get_width * 0.8).to_i}"
+      else
+        # 15% of the height
+        file = "#{file}?height=#{(@page.get_height * 0.15).to_i}"
+      end
     end
 
     @logo = LVGL::LVImage.new(@page)
     @logo.set_src(file)
 
     # Position the logo
-    @logo.set_pos(*center(@logo, 0, -@logo.get_height))
+    if use_bgrt?
+      x = File.read("/sys/firmware/acpi/bgrt/xoffset").to_i
+      y = File.read("/sys/firmware/acpi/bgrt/yoffset").to_i
+      @logo.set_pos(x, y)
+    else
+      @logo.set_pos(*center(@logo, 0, -@logo.get_height))
+    end
+
+    # This is used to unify custom logo and BGRT sizes.
+    # The BGRT's center point **should** be at the one third mark of the screen,
+    # as per the spec, but in practice many have centered BGRTs.
+    # So we try to guesstimate a centered BGRT here.
+    midpoint = @screen.get_height/2
+    bottom_third = @screen.get_height() / 3.0 * 2
+    logo_bottom = @logo.get_height() + @logo.get_y()
+    @vertical_offset = logo_bottom - midpoint + 5*@unit
+    @vertical_offset = 0 if @vertical_offset < 0
+
+    # Some vendors ship a full-screen BGRT.
+    # Since we can't do much about it, we're assuming this:
+    #   - Has a centered logo
+    #   - The bottom third of the display is free
+    # This assumption should hold since this is the assumptions for Windows.
+    if (@vertical_offset + midpoint) > bottom_third
+      # Force the UI area to be at the last third at the bottom.
+      @vertical_offset = bottom_third - midpoint + 5*@unit
+    end
   end
 
   def add_progress_bar()
@@ -71,16 +125,18 @@ class UI
     @progress_bar.set_height(3 * @unit)
     @progress_bar.set_width(@page.get_width * 0.7)
     @progress_bar.set_pos(*center(@progress_bar))
+    @progress_bar.foreground_color = FG_COLOR
+    @progress_bar.background_color = BG_COLOR
   end
 
   def add_screen()
     @screen = LVGL::LVContainer.new()
-    @screen.get_style(LVGL::CONT_STYLE::MAIN).dup.tap do |style|
-      @screen.set_style(LVGL::CONT_STYLE::MAIN, style)
-
+    # NOTE: we don't need to `#dup` the screen's style, it's unique.
+    # (`#dup`ing it also crashes with the mono theme :/)
+    @screen.get_style(LVGL::CONT_STYLE::MAIN).tap do |style|
       # Background for the splash, assumed black.
-      style.body_main_color = 0xFF000000
-      style.body_grad_color = 0xFF000000
+      style.body_main_color = BG_COLOR
+      style.body_grad_color = BG_COLOR
     end
   end
 
@@ -90,8 +146,8 @@ class UI
     @page.set_height(@screen.get_height)
     @page.get_style(LVGL::CONT_STYLE::MAIN).dup.tap do |style|
       @page.set_style(LVGL::CONT_STYLE::MAIN, style)
-      style.body_main_color = 0xFF000000
-      style.body_grad_color = 0xFF000000
+      style.body_main_color = BG_COLOR
+      style.body_grad_color = BG_COLOR
       style.body_border_width = 0
     end
   end
@@ -102,15 +158,15 @@ class UI
     @recovery_container.set_width(@page.get_width)
     @recovery_container.get_style(LVGL::CONT_STYLE::MAIN).dup.tap do |style|
       @recovery_container.set_style(LVGL::CONT_STYLE::MAIN, style)
-      style.body_main_color = 0xFF000000
-      style.body_grad_color = 0xFF000000
+      style.body_main_color = BG_COLOR
+      style.body_grad_color = BG_COLOR
       style.body_border_width = 0
     end
 
     recovery_label = LVGL::LVLabel.new(@recovery_container)
     recovery_label.get_style(LVGL::LABEL_STYLE::MAIN).dup.tap do |style|
       recovery_label.set_style(LVGL::LABEL_STYLE::MAIN, style)
-      style.text_color = 0xFFFFFFFF
+      style.text_color = FG_COLOR
     end
     recovery_label.set_long_mode(LVGL::LABEL_LONG::BREAK)
     recovery_label.set_align(LVGL::LABEL_ALIGN::CENTER)
@@ -127,22 +183,39 @@ class UI
   # Used to handle fade-in/fade-out
   # This is because opacity handles multiple overlaid objects wrong.
   def add_cover()
-    @cover = LVGL::LVObject.new(@screen)
+    @cover = LVGL::LVContainer.new(@screen)
     # Make it so we can use the opacity to fade in/out
     @cover.set_opa_scale_enable(true)
     @cover.set_width(@screen.get_width())
     @cover.set_height(@screen.get_height())
     @cover.set_click(false)
 
-    @cover.get_style().dup.tap do |style|
-      @cover.set_style(style)
+    @cover.get_style(LVGL::CONT_STYLE::MAIN).dup.tap do |style|
+      @cover.set_style(LVGL::CONT_STYLE::MAIN, style)
 
-      # Background for the splash, assumed black.
-      style.body_main_color = 0xFF000000
-      style.body_grad_color = 0xFF000000
+      # Background for the splash
+      style.body_main_color = BG_COLOR
+      style.body_grad_color = BG_COLOR
       # Some themes will add a border to LVObject.
       style.body_border_width = 0
     end
+  end
+
+  # This is used to act as if we were fading "around" the BGRT.
+  # Its presence will be whatever state the cover is in.
+  def add_cover_bgrt()
+    return unless has_bgrt?()
+    # Work around the extension sniffing from the image decoders...
+    File.symlink(BGRT_PATH, "/bgrt.bmp") unless File.exist?("/bgrt.bmp")
+    file = "/bgrt.bmp"
+
+    @cover_bgrt = LVGL::LVImage.new(@cover)
+    @cover_bgrt.set_src(file)
+
+    # Position the logo
+    x = File.read("/sys/firmware/acpi/bgrt/xoffset").to_i
+    y = File.read("/sys/firmware/acpi/bgrt/yoffset").to_i
+    @cover_bgrt.set_pos(x, y)
   end
 
   def add_textarea()
@@ -155,17 +228,17 @@ class UI
       set_pwd_mode(true)
       get_style(LVGL::TA_STYLE::BG).dup.tap do |style|
         set_style(LVGL::TA_STYLE::BG, style)
-        style.body_main_color = 0xFF000000
-        style.body_grad_color = 0xFF000000
+        style.body_main_color = BG_COLOR
+        style.body_grad_color = BG_COLOR
         style.body_radius = 5
-        style.body_border_color = 0xFFFFFFFF
+        style.body_border_color = FG_COLOR
         style.body_border_width = 3
         style.body_border_opa = 255
-        style.text_color = 0xFFFFFFFF
+        style.text_color = FG_COLOR
       end
       get_style(LVGL::TA_STYLE::PLACEHOLDER).dup.tap do |style|
         set_style(LVGL::TA_STYLE::PLACEHOLDER, style)
-        style.text_color = 0xFFAAAAAA
+        style.text_color = LVGL::LVColor.mix(FG_COLOR, BG_COLOR, 100)
       end
     end
 
@@ -292,7 +365,7 @@ class UI
   def center(el, x = 0, y = 0)
     [
       @screen.get_width  / 2 - el.get_width  / 2 + x,
-      @screen.get_height / 2 - el.get_height / 2 + y,
+      @screen.get_height / 2 - el.get_height / 2 + y + @vertical_offset,
     ]
   end
 end

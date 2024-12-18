@@ -1,7 +1,6 @@
 self: super:
 
 let
-  fetchpatch = self.fetchpatch;
   callPackage = self.callPackage;
   # FIXME : upstream fix for .a in "lib" instead of this hack.
   # This is used to "re-merge" the split gcc package.
@@ -66,6 +65,8 @@ in
     pd-mapper = callPackage ./qrtr/pd-mapper.nix { };
     rmtfs = callPackage ./qrtr/rmtfs.nix { };
 
+    lk2ndMsm8953 = callPackage ./lk2nd/msm8953.nix {};
+
     #
     # Hacks
     # -----
@@ -103,17 +104,6 @@ in
           --replace "ar qc" '${self.stdenv.cc.bintools.targetPrefix}ar qc'
       '';
     });
-
-    ubootTools = super.ubootTools.overrideAttrs({ buildInputs ? [], patches ? [], ... }: {
-      # Needed for cross-compiling ubootTools
-      buildInputs = buildInputs ++ [
-        self.openssl
-      ];
-      patches = patches ++ [
-        ./u-boot/0001-mobile-nixos-work-around-ubootTools-cross-compilatio.patch
-      ];
-    });
-
 
     # Things specific to mobile-nixos.
     # Not necessarily internals, but they probably won't go into <nixpkgs>.
@@ -161,7 +151,9 @@ in
 
       cross-canary-test = callPackage ./mobile-nixos/cross-canary/test.nix {};
       cross-canary-test-static = self.pkgsStatic.callPackage ./mobile-nixos/cross-canary/test.nix {};
+
+      pine64-alsa-ucm = callPackage ./mobile-nixos/pine64-alsa-ucm {};
     };
 
-    imageBuilder = callPackage ../lib/image-builder {};
+    image-builder = callPackage ./image-builder {};
  }

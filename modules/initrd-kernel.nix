@@ -4,16 +4,13 @@ let
 
   inherit (lib)
     literalExpression
-    mergeEqualOption
     mkDefault
     mkIf
     mkMerge
     mkOption
-    mkOverride
     types
   ;
   cfg = config.mobile.boot.stage-1.kernel;
-  device_config = config.mobile.device;
 
   modulesClosure = pkgs.makeModulesClosure {
     kernel = cfg.package;
@@ -32,7 +29,7 @@ in
       type = types.bool;
       default = !config.mobile.enable;
       defaultText = literalExpression "!config.mobile.enable";
-      description = ''
+      description = lib.mdDoc ''
         Whether Mobile NixOS relies on upstream NixOS settings for kernel config.
 
         Enable this when using the NixOS machinery for kernels.
@@ -41,7 +38,7 @@ in
     modular = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Whether the kernel is built with modules or not.
         This will enable modules closure generation and listing modules
         to bundle and load.
@@ -51,7 +48,7 @@ in
       type = types.listOf types.str;
       default = [
       ];
-      description = ''
+      description = lib.mdDoc ''
         Module names to add to the closure.
         They will be modprobed.
       '';
@@ -60,7 +57,7 @@ in
       type = types.listOf types.str;
       default = [
       ];
-      description = ''
+      description = lib.mdDoc ''
         Module names to add to the closure.
         They will not be modprobed.
       '';
@@ -68,7 +65,7 @@ in
     allowMissingModules = mkOption {
       type = types.bool;
       default = true;
-      description = ''
+      description = lib.mdDoc ''
         Chooses whether the modules closure build fails if a module is missing.
       '';
     };
@@ -77,12 +74,53 @@ in
     package = mkOption {
       type = types.nullOr types.package;
       default = null;
-      description = ''
+      description = lib.mdDoc ''
         Kernel to be used by the system-type to boot into the Mobile NixOS
         stage-1.
 
         This is not using a kernelPackages attrset, but a kernel derivation directly.
       '';
+    };
+    useStrictKernelConfig = mkOption {
+      type = types.bool;
+      default = false;
+      description = lib.mdDoc ''
+        Whether or not to fail when the config file differs when built.
+
+        When building a personal configuration, this should be disabled (`false`)
+        for convenience, as it allows implicitly tracking revision updates.
+
+        When in testing scenarios (e.g. building an example system) this should
+        be enabled (`true`), as it ensures all required configuration is set
+        as expected.
+      '';
+    };
+    # These options are not intended for end-user use, which is why they must
+    # all be marked internal.
+    # The only reason is to prevent needless rebuilds by end-users.
+    # Users that are curious enough are allowed to change that value.
+    logo = {
+      linuxLogo224PPMFile = mkOption {
+        type = types.package;
+        internal = true;
+        description = lib.mdDoc ''
+          Final logo file consumed by the Mobile NixOS kernel-builder infra.
+        '';
+      };
+      logo = mkOption {
+        type = with types; either package path;
+        internal = true;
+        description = lib.mdDoc ''
+          Input file for the logo.
+
+          It will be scaled according to the device-specific configuration.
+
+          For better results, the logo should have as much blank space as
+          needed to scale as expected. See the default logo for an example.
+
+          The final logo will be cropped automatically.
+        '';
+      };
     };
   };
 
@@ -111,6 +149,36 @@ in
           "crc32c"
         ];
       });
+
+      nixpkgs.overlays = [(_: _: {
+        # Used to transmit the option to the kernel builder
+        # *sigh*
+        __mobile-nixos-useStrictKernelConfig = cfg.useStrictKernelConfig;
+      })];
+    }
+    # Logo configuration
+    {
+      nixpkgs.overlays = [(final: super: {
+        # This is how it's passed down to the kernel builder infra...
+        inherit (cfg.logo) linuxLogo224PPMFile;
+      })];
+      mobile.boot.stage-1.kernel.logo = {
+        logo = mkDefault ../artwork/boot-logo.svg;
+        linuxLogo224PPMFile = pkgs.runCommand "logo_linux_clut224.ppm" {
+          nativeBuildInputs = with pkgs; [
+            imagemagick
+            netpbm
+            perl # Needed by netpbm
+          ];
+        } ''
+          convert \
+            ${cfg.logo.logo} \
+            -resize ${toString config.mobile.hardware.screen.width}x${toString config.mobile.hardware.screen.height} \
+            -trim converted.ppm
+          ppmquant 224 converted.ppm > quantized.ppm
+          pnmnoraw quantized.ppm > $out
+        '';
+      };
     }
     {
       mobile.boot.stage-1 = (mkIf (!cfg.modular) {
@@ -153,6 +221,7 @@ in
                   baseVersion = "3.18";
                   kernelOlder = lib.versionOlder baseVersion;
                   kernelAtLeast = lib.versionAtLeast baseVersion;
+                  modDirVersion = "99";
                 };
                 version = "99";
               } "mkdir $out; touch $out/no-kernel"

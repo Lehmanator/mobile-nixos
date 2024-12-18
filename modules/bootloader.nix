@@ -1,11 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (config.boot) growPartition;
-  inherit (lib) mkIf mkOption optionalString types;
-  inherit (config.mobile._internal) compressLargeArtifacts;
-  inherit (pkgs) buildPackages;
-  rootfsLabel = config.mobile.generatedFilesystems.rootfs.label;
+  inherit (lib) mkIf mkOption types;
 in
 {
   options = {
@@ -14,7 +10,7 @@ in
         enable = mkOption {
           type = types.bool;
           default = config.mobile.enable;
-          description = ''
+          description = lib.mdDoc ''
             Whether the bootloader **configuration** for Mobile NixOS
             is enabled.
 

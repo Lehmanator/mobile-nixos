@@ -1,8 +1,12 @@
 { config, lib, pkgs, ... }:
 
-with lib;
-
 let
+  inherit (lib)
+    mkIf
+    mkMerge
+    mkOption
+    types
+  ;
   cfg = config.mobile.quirks;
 in
 {
@@ -10,7 +14,7 @@ in
     quirks.fb-refresher.enable = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Enables use of `msm-fb-refresher`.
         Use sparingly, it is better to patch software to flip buffers instead.
 
@@ -21,7 +25,7 @@ in
     quirks.fb-refresher.stage-1.enable = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Add `msm-fb-refresher` to stage-1.
 
         It should not be needed for the usual assortment of Mobile NixOS tools.
@@ -35,8 +39,8 @@ in
       mobile.boot = mkMerge [
         (mkIf cfg.fb-refresher.stage-1.enable {
           stage-1 = {
-            extraUtils = with pkgs; [
-              msm-fb-refresher
+            extraUtils = [
+              pkgs.msm-fb-refresher
             ];
             tasks = [ ./msm-fb-refresher-task.rb ];
           };

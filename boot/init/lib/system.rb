@@ -79,7 +79,7 @@ module System
   def self.which(program_name)
     (ENV["PATH"] or "").split(":").each do |path|
       full = File.join(path, program_name)
-      if File.exists?(full) && !File.directory?(full) && File.stat(full).executable? then
+      if File.exist?(full) && !File.directory?(full) && File.stat(full).executable? then
         return full
       end
     end
@@ -102,16 +102,12 @@ module System
   # The return format is a hash, with keys being mount point paths,
   # and values being their respective line from /proc/mounts.
   def self.mount_points()
-    # This is the most horrible hack :(
-    mounted_proc = false
-    unless File.exists?("/proc/mounts")
-      $logger.debug("Temporarily mounting /proc...")
-      FileUtils.mkdir_p("/proc")
-      run("mount", "-t", "proc", "proc", "/proc")
-      mounted_proc = true
+    unless File.exist?("/.proc/mounts")
+      $logger.debug("Mounting private procfs at /.proc...")
+      FileUtils.mkdir_p("/.proc")
+      run("mount", "-t", "proc", "proc", "/.proc")
     end
-    result = File.read("/proc/mounts").split("\n")
-    run("umount", "-f", "/proc") if mounted_proc
+    result = File.read("/.proc/mounts").split("\n")
 
     result = result.map do |line|
       [
@@ -121,9 +117,6 @@ module System
         line
       ]
     end.to_h
-
-    # We mounted /proc? Hide it! We've now unmounted it.
-    result.delete("/proc") if mounted_proc
 
     result
   end
@@ -158,7 +151,7 @@ module System
   #   @param dest [String] Destination path to mount to
   #   @param type [String] Type of the mount (+-t+).
   #   @param options [Array<String>] Mount options (+-o+).
-  def self.mount(source, dest = nil, type: nil, options: nil)
+  def self.mount(source, dest = nil, type: nil, options: [])
     # Fill-in the "reversed" optional parameters.
     unless dest
       dest = source
@@ -174,10 +167,14 @@ module System
       args << "-t"
       args << type
     end
-    if options
+
+    # Filter options that busybox mount can't handle.
+    options = options.select { |option| !option.match(/^x-/) }
+    unless options.empty?
       args << "-o"
       args << options.join(",")
     end
+
     args << source
     args << dest
 
@@ -206,7 +203,7 @@ module System
   end
 
   def self.cmdline()
-    if File.exists?("/proc/cmdline") then
+    if File.exist?("/proc/cmdline") then
       File.read("/proc/cmdline").split(/\s+/)
     else
       []

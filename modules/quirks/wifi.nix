@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (lib) mkOption types mkMerge mkIf;
+  inherit (lib) mkOption types mkIf;
   cfg = config.mobile.quirks;
 in
 {
@@ -9,7 +9,7 @@ in
     disableMacAddressRandomization = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Disables MAC address randomization.
 
         This may be required by some hardware or drivers, or combination.

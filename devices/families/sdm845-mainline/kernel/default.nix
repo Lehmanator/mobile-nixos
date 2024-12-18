@@ -1,19 +1,27 @@
 { mobile-nixos
-, fetchFromGitHub
 , fetchFromGitLab
+, fetchpatch
 , ...
 }:
 
-mobile-nixos.kernel-builder rec {
-  version = "5.19.16";
+mobile-nixos.kernel-builder {
+  version = "6.4.0";
   configfile = ./config.aarch64;
 
   src = fetchFromGitLab {
     owner = "sdm845-mainline";
     repo = "linux";
-    rev = "9aa25bf492928bc7a4542e87d28919c9ac36d27c"; # sdm845/5.19-release
-    hash = "sha256-f9eSZbP9Dx369MFRPBUIjCkILlHrkAaMa1hEK+nvK0Q=";
+    rev = "sdm845-6.4-r1";
+    hash = "sha256-XUYv8tOk0vsG11w8UtBKizlBZ03cbQ2QRGyZEK0ECGU=";
   };
+
+  patches = [
+    # ASoC: codecs: tas2559: Fix build
+    (fetchpatch {
+      url = "https://github.com/samueldr/linux/commit/d1b59edd94153ac153043fb038ccc4e6c1384009.patch";
+      sha256 = "sha256-zu1m+WNHPoXv3VnbW16R9SwKQzMYnwYEUdp35kUSKoE=";
+    })
+  ];
 
   isModular = false;
   isCompressed = "gz";

@@ -1,7 +1,13 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (lib) mkIf mkMerge mkOption types;
+  inherit (lib)
+    mkDefault
+    mkIf
+    mkMerge
+    mkOption
+    types
+  ;
   cfg = config.mobile.boot.stage-1.gui;
   inherit (config.boot.initrd) luks;
   minimalX11Config = pkgs.runCommand "minimalX11Config" {
@@ -25,7 +31,43 @@ in
     enable = mkOption {
       type = types.bool;
       default = true;
-      description = "enable splash and boot selection GUI";
+      description = lib.mdDoc ''
+        enable splash and boot selection GUI
+      '';
+    };
+    waitForDevices = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = lib.mdDoc ''
+          Whether to wait a bit for input devices before starting the user interface.
+
+          This is only necessary on "slow" busses where devices may arrive a tad later than expected.
+
+          Generally, only enable when a device needed to input the passphrase is connected via USB.
+        '';
+      };
+      delay = mkOption {
+        type = types.int;
+        default = 0;
+        description = lib.mdDoc ''
+          Minimum delay spent waiting for input devices to settle.
+
+          The boot GUI will wait until this many seconds elapsed without changes before starting.
+        '';
+      };
+    };
+    logo = mkOption {
+      type = with types; either package path;
+      internal = true;
+      default = ../artwork/logo/logo.white.svg;
+      description = lib.mdDoc ''
+        Logo shown during stage-1 init.
+
+        Option marked internal since there are some particular quirks in changing the logo.
+
+        It may not work as expected.
+      '';
     };
   };
 
@@ -42,7 +84,7 @@ in
       ];
     }
     (mkIf cfg.enable {
-      mobile.boot.stage-1.contents = with pkgs; [
+      mobile.boot.stage-1.contents = [
         {
           object = "${pkgs.mobile-nixos.stage-1.boot-error}/libexec/boot-error.mrb";
           symlink = "/applets/boot-error.mrb";
@@ -59,12 +101,31 @@ in
           object = "${minimalX11Config}";
           symlink = "/etc/X11";
         }
+        {
+          object = cfg.logo;
+          symlink = "/etc/logo.svg";
+        }
       ];
 
       mobile.boot.stage-1.environment = {
         XKB_CONFIG_ROOT = "/etc/X11/xkb";
         XLOCALEDIR = "/etc/X11/locale";
       };
+      mobile.boot.stage-1.bootConfig = mkMerge [
+        (mkIf (cfg.waitForDevices.enable) {
+          quirks = {
+            wait_for_devices_delay = cfg.waitForDevices.delay;
+          };
+        })
+        {
+          splash = {
+            theme = mkDefault "night";
+            background = mkDefault "0xFF000000";
+            foreground = mkDefault "0xFFFFFFFF";
+            useBGRT    = mkDefault true;
+          };
+        }
+      ];
     })
   ]);
 }

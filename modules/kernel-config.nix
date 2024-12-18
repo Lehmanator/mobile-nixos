@@ -12,7 +12,7 @@ in
       kernel = {
         structuredConfig = mkOption {
           type = with types; listOf (functionTo attrs);
-          description = ''
+          description = lib.mdDoc ''
             Functions returning kernel structured config.
 
             The functions take one argument, an attrset of helpers.
@@ -33,6 +33,7 @@ in
       # Basic universal options
       (helpers: with helpers; {
         LOCALVERSION = lib.mkDefault (freeform ''""'');
+        LOCALVERSION_AUTO = no;
         # POSIX_ACL and XATTR are generally needed.
         TMPFS = yes;
         TMPFS_POSIX_ACL = yes;
@@ -46,12 +47,18 @@ in
         EXT4_FS_POSIX_ACL = yes;
 
         # Required config for Nix
+        MULTIUSER = whenAtLeast "4.1" yes;
         NAMESPACES = yes;
         USER_NS = yes;
         PID_NS = yes;
 
         # Additional options
         SYSVIPC = yes;
+        TTY = whenAtLeast "3.9" yes;
+        VT = yes;
+
+        # Support for initramfs
+        BLK_DEV_INITRD = yes;
 
         # Options from Android kernels that break stuff
         # While not *universally available*, it's universally required to
@@ -79,9 +86,16 @@ in
         SYSFS_DEPRECATED = no;
         UEVENT_HELPER = no;
         FW_LOADER_USER_HELPER = option no;
+        BLOCK = yes;
         SCSI = yes;
         BLK_DEV_BSG = yes;
         DEVPTS_MULTIPLE_INSTANCES = whenOlder "4.7" yes;
+      })
+      # Needed for logo at boot
+      (helpers: with helpers; {
+        LOGO = yes;
+        FRAMEBUFFER_CONSOLE = yes;
+        FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER = whenAtLeast "4.19" no;
       })
       # Needed for firewall
       (helpers: with helpers; let
@@ -128,7 +142,8 @@ in
         NFT_NAT                     = whenAtLeast "3.13" yes;
         NFT_NUMGEN                  = whenAtLeast "4.9" yes;
         NFT_META                    = whenBetween "3.13" "4.17" yes;
-        NFT_OBJREF                  = whenAtLeast "4.10" yes;
+        # https://github.com/torvalds/linux/commit/d037abc2414b4539401e0e6aa278bedc4628ad69
+        NFT_OBJREF                  = whenBetween "4.10" "6.2" yes;
         NFT_OSF                     = whenAtLeast "4.19" yes;
         NFT_QUOTA                   = whenAtLeast "4.9" yes;
         NFT_REDIR                   = whenAtLeast "3.19" yes;
@@ -210,6 +225,58 @@ in
         # > IP Virtual Server support will let you build a high-performance virtual server based on cluster of two or more real servers
         # Let's not enable it.
         # NETFILTER_XT_MATCH_IPVS = ...;
+      })
+
+      # Needed for iio sensors (e.g. accel) to be useful
+      (helpers: with helpers; let
+        module = yes;
+      in {
+        HID_SENSOR_HUB = whenAtLeast "3.7" module;
+        HID_SENSOR_IIO_COMMON = whenAtLeast "3.7" module;
+        HID_SENSOR_ACCEL_3D = whenAtLeast "3.8" module;
+        HID_SENSOR_GYRO_3D = whenAtLeast "3.7" module;
+        HID_SENSOR_HUMIDITY = whenAtLeast "4.12" module;
+        HID_SENSOR_ALS = whenAtLeast "3.7" module;
+        HID_SENSOR_PROX = whenAtLeast "3.15" module;
+        HID_SENSOR_MAGNETOMETER_3D = whenAtLeast "3.7" module;
+        HID_SENSOR_INCLINOMETER_3D = whenAtLeast "3.14" module;
+        HID_SENSOR_DEVICE_ROTATION = whenAtLeast "3.16" module;
+        HID_SENSOR_CUSTOM_INTEL_HINGE = whenAtLeast "5.12" module;
+        HID_SENSOR_PRESS = whenAtLeast "3.15" module;
+        HID_SENSOR_TEMP = whenAtLeast "4.12" module;
+      })
+
+      # Needed for waydroid
+      (helpers: with helpers; let
+        inherit (lib) mkMerge;
+        # TODO drop when we fix modular kernels
+        module = yes;
+      in {
+        ANDROID = whenBetween "3.19" "6.0" yes;
+        ANDROID_BINDER_IPC = whenAtLeast "3.19" yes;
+        ANDROID_BINDERFS = whenAtLeast "5.0" yes;
+        PSI = whenAtLeast "4.20" yes;
+
+        # Needed for waydroid networking to function
+        NF_TABLES = whenAtLeast "3.13" yes;
+        NF_TABLES_IPV4 = mkMerge [ (whenBetween "3.13" "4.17" module) (whenAtLeast "4.17" yes) ];
+        NF_TABLES_IPV6 = mkMerge [ (whenBetween "3.13" "4.17" module) (whenAtLeast "4.17" yes) ];
+        NF_TABLES_INET = mkMerge [ (whenBetween "3.14" "4.17" module) (whenAtLeast "4.17" yes) ];
+        NFT_MASQ = whenAtLeast "3.18" module;
+        NFT_NAT = whenAtLeast "3.13" module;
+        IP_ADVANCED_ROUTER = yes;
+        IP_MULTIPLE_TABLES = yes;
+        IPV6_MULTIPLE_TABLES = yes;
+
+        # Needed for XfrmController
+        XFRM = yes;
+        XFRM_ALGO = whenAtLeast "3.5" module;
+        XFRM_USER = module;
+
+        # netd uses NFLOG
+        NETFILTER_NETLINK = yes;
+        NETFILTER_NETLINK_LOG = yes;
+        NETFILTER_XT_TARGET_NFLOG = module;
       })
     ];
 

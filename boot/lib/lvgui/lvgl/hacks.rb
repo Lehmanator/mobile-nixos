@@ -13,7 +13,7 @@ module LVGL::Hacks
     ]
       .flatten()
       .map { |dir| File.join(dir, assets_path) }
-      .find { |dir| File.exists?(dir) }
+      .find { |dir| File.exist?(dir) }
 
     # Fallback to a probably non-existent dir
     # (So things don't crash too hard)
@@ -21,6 +21,7 @@ module LVGL::Hacks
     LVGL::Hacks.set_assets_path(data_dir)
 
     LVGUI::Native.hal_init(get_asset_path(""))
+    LVGUI::Native.lv_bmp_init()
     LVGUI::Native.lv_nanosvg_init()
   end
 
@@ -44,6 +45,12 @@ module LVGL::Hacks
   def self.theme_night()
     LVGUI::Native.lv_theme_set_current(
       LVGUI::Native.lv_theme_night_init(205, nil)
+    )
+  end
+
+  def self.theme_mono()
+    LVGUI::Native.lv_theme_set_current(
+      LVGUI::Native.lv_theme_mono_init(0, nil)
     )
   end
 

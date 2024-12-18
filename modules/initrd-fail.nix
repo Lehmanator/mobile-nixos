@@ -1,9 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (lib) mkIf mkOption types;
-
-  cfg = config.mobile.boot.stage-1.fail;
+  inherit (lib) mkOption types;
 in
 {
   options.mobile = {
@@ -11,14 +9,14 @@ in
       reboot = mkOption {
         type = types.bool;
         default = true;
-        description = ''
+        description = lib.mdDoc ''
           Reboots the device after a delay on failure.
         '';
       };
       delay = mkOption {
         type = types.int;
         default = 10;
-        description = ''
+        description = lib.mdDoc ''
           Duration (in seconds) before a reboot on failure.
         '';
       };

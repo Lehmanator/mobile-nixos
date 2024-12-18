@@ -6,7 +6,6 @@
 let 
   inherit (lib) mkOption types;
   inherit (config.mobile.quirks) supportsStage-0;
-  inherit (config.mobile.boot.stage-1) kernel;
 
   # A bit dirty, but actually works for what we want.
   fdt-forward = pkgs.runCommand "fdt-forward-for-initrd" {} ''
@@ -25,7 +24,7 @@ in
     mobile.quirks.supportsStage-0 = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Set to true when a device, and its kernel, can use kexec.
 
         This will enable booting into the generation's kernel.
@@ -36,7 +35,7 @@ in
       nodes = mkOption {
         type = types.listOf types.str;
         default = [];
-        description = ''
+        description = lib.mdDoc ''
           FDT nodes to forward to the kexec'd system.
         '';
       };
@@ -46,7 +45,7 @@ in
         example = [
           ["/soc/mmc@1c10000/wifi@1" "local-mac-address"]
         ];
-        description = ''
+        description = lib.mdDoc ''
           Pair of [node prop] to forward to the kexec'd system.
 
           Only the prop described on the exact node will be forwarded.
@@ -58,7 +57,7 @@ in
       outputs = {
         stage-0 = mkOption {
           internal = true;
-          description = ''
+          description = lib.mdDoc ''
             The configuration, re-evaluated with assumptions for stage-0 use.
           '';
         };
@@ -68,10 +67,10 @@ in
 
   config = {
     mobile.outputs.stage-0 = (config.lib.mobile-nixos.composeConfig {
-      config = { config, ... }: {
-        mobile.boot.stage-1.stage = if supportsStage-0 then 0 else 1;
-        mobile.boot.stage-1.extraUtils = with pkgs; [
-          { package = pkgs.kexectools; }
+      config = { config, ... }: lib.mkIf supportsStage-0 {
+        mobile.boot.stage-1.stage = 0;
+        mobile.boot.stage-1.extraUtils = [
+          { package = pkgs.kexec-tools; }
           { package = fdt-forward; }
         ];
         mobile.boot.stage-1.bootConfig.stage-0 = {

@@ -1,9 +1,10 @@
 { config, lib, pkgs, ... }:
 
-with lib;
-
 let
-  device_name = config.mobile.device.name;
+  inherit (lib)
+    mkOption
+    types
+  ;
   cfg = config.mobile.boot.stage-1.fbterm;
   fontsConf = pkgs.writeText "fonts.conf" ''
     <?xml version="1.0"?>
@@ -19,14 +20,14 @@ in
     enable = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Enables fbterm.
       '';
     };
     fb = mkOption {
       type = types.str;
       default = "/dev/fb1";
-      description = ''
+      description = lib.mdDoc ''
         framebuffer to run fbterm on.
       '';
     };
@@ -34,7 +35,7 @@ in
       type = types.str;
       internal = true;
       default = "2";
-      description = ''
+      description = lib.mdDoc ''
         The tty to run on. This will be switched for you.
 
         This is used to side-step an issue where X11 will not start
@@ -80,8 +81,8 @@ in
         end
       '')
     ];
-    extraUtils = with pkgs; [
-      { package = fbterm; }
+    extraUtils = [
+      { package = pkgs.fbterm; }
     ];
     contents = [
       { object = fontsConf; symlink = "/etc/fonts/fonts.conf"; }

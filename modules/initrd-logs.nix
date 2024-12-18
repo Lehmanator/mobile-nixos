@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (lib) mkIf mkMerge mkOption optionalString types;
+  inherit (lib) mkIf mkMerge mkOption types;
   inherit (config.mobile.outputs) extraUtils;
   cfg = config.mobile.boot.stage-1.bootlog;
 in
@@ -10,14 +10,14 @@ in
     enable = mkOption {
       type = types.bool;
       default = config.mobile.boot.stage-1.enable;
-      description = ''
+      description = lib.mdDoc ''
         Enables bootlogd logging multiplexer.
       '';
     };
     kmsg = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Enables logging to /dev/kmsg.
 
         Note that this may render switching to stage-2 inoperable.
@@ -88,8 +88,8 @@ in
           end
         '')
       ];
-      extraUtils = with pkgs; [
-        { package = bootlogd; }
+      extraUtils = [
+        { package = pkgs.bootlogd; }
       ];
     })
   ];

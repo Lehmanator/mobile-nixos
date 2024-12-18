@@ -9,10 +9,8 @@
 , withSimulator ? false
 }:
 
-let stdenv = pkgs.stdenvAdapters.keepDebugInfo pkgs.stdenv; in
-
 let
-  inherit (lib) optional optionals optionalString;
+  inherit (lib) optional optionals;
   simulatorDeps = [
     SDL2
   ];
@@ -97,13 +95,13 @@ let
 in
   stdenv.mkDerivation {
     pname = "lvgui";
-    version = "2023-02-11";
+    version = "2024-03-29";
 
     src = fetchFromGitHub {
       repo = "lvgui";
       owner = "mobile-nixos";
-      rev = "9280e18c838bcb83bd959bf39ee707d5bb84a954";
-      sha256 = "sha256-6rZTePZZEMZlBrKSOBr3/3vl6OLwOmqqGMIQ8zzbT3E=";
+      rev = "8768bab377a7ccab0b25b96d204af670820f8c76";
+      hash = "sha256-lDmUppndyDGY1EJT7FC6Fdb3AT2M6D75FnXw4bPNrD0=";
     };
 
     # Document `LVGL_ENV_SIMULATOR` in the built headers.
@@ -127,10 +125,6 @@ in
     ++ optionals withSimulator simulatorDeps
     ;
 
-    NIX_CFLAGS_COMPILE = [
-      "-DX_DISPLAY_MISSING"
-    ];
-
     makeFlags = [
       "PREFIX=${placeholder "out"}"
     ]
@@ -139,4 +133,7 @@ in
     ;
 
     enableParallelBuilding = true;
+
+    # https://github.com/mobile-nixos/lvgui/issues/23
+    env.NIX_CFLAGS_COMPILE = "-Wno-error";
   }

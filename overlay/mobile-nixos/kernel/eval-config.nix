@@ -65,7 +65,6 @@
             let
               line = lib.escapeShellArg (mkConfigLine key item);
               lineNotSet = "# CONFIG_${key} is not set";
-              linePattern = "^CONFIG_${key}=";
               presencePattern = "CONFIG_${key}[ =]";
             in
             ''
@@ -148,14 +147,14 @@
             configfile = lib.mkOption {
               readOnly = true;
               type = lib.types.str;
-              description = ''
+              description = lib.mdDoc ''
                 String that can directly be used as a kernel config file contents.
               '';
             };
             validatorSnippet = lib.mkOption {
               readOnly = true;
               type = lib.types.package;
-              description = ''
+              description = lib.mdDoc ''
                 Path to a script that can directly be called to validate the kernel config.
               '';
             };

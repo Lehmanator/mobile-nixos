@@ -17,6 +17,7 @@
 { stdenv
 , lib
 , path
+, fetchpatch
 , buildPackages
 
 , writeTextFile
@@ -60,6 +61,15 @@
 # It is expected this will have been added to the Nixpkgs overlay by the
 # system build.
 , systemBuild-structuredConfig ? {}
+
+# When set to true, the kernel build will be failed when the kernel
+# config differs from expected.
+, __mobile-nixos-useStrictKernelConfig ? false
+
+# Only the logo file has to be overridable; the enable/disable flags are part
+# of the builder signature such that if enabling the logo replacement causes
+# issues, it can be disabled for a particular kernel.
+, linuxLogo224PPMFile ? ./logo_linux_clut224.ppm
 }:
 
 let
@@ -103,12 +113,14 @@ in
 # Enable build of dtbo.img
 , dtboImg ? false
 
+# Enables a patch (for 5.4+) that forces the logo to be shown
+, enableForceLogoPatch ? true
+
 # Linux logo centering (as a boot logo)
 , enableCenteredLinuxLogo ? true
 
 # Linux logo replacement
 , enableLinuxLogoReplacement ? true
-, linuxLogo224PPMFile ? ./logo_linux_clut224.ppm
 
 # Mainly to mask issues with newer compilers
 , enableRemovingWerror ? false
@@ -198,10 +210,10 @@ stdenv.mkDerivation (inputArgs // {
 
   # Allows disabling the kernel config normalization.
   # Set to false when normalizing the kernel config.
-  forceNormalizedConfig = true;
+  forceNormalizedConfig = __mobile-nixos-useStrictKernelConfig;
 
   # Allows updating the kernel config to conform to the structured config.
-  updateConfigFromStructuredConfig = false;
+  updateConfigFromStructuredConfig = !__mobile-nixos-useStrictKernelConfig;
 
   depsBuildBuild = [ buildPackages.stdenv.cc ];
   nativeBuildInputs = [ perl bc nettools openssl rsync gmp libmpc mpfr ]
@@ -228,6 +240,11 @@ stdenv.mkDerivation (inputArgs // {
     ++ optional ((lib.versionAtLeast version "4.13" && lib.versionOlder version "5.19")) (nixosKernelPath + "/randstruct-provide-seed.patch")
     ++ optional ((lib.versionAtLeast version "5.19")) (nixosKernelPath + "/randstruct-provide-seed-5.19.patch")
     ++ optional (enableDefaultYYLOCPatch && lib.versionOlder version "4.0") ./gcc10-extern_YYLOC_global_declaration.patch
+    ++ optional (enableForceLogoPatch && lib.versionAtLeast version "5.4")
+      (fetchpatch {
+        url = "https://github.com/samueldr/linux/commit/fa2b50d61364fbe3d6e2c655804605221ed43dce.patch";
+        hash = "sha256-MOqHr7FUaiWs1OuKa66mVSa39jgsf0UETvIz1L8VXgY=";
+      })
     ++ patches
   ;
 
@@ -321,7 +338,7 @@ stdenv.mkDerivation (inputArgs // {
       echo "ERROR: $buildRoot/.config : file exists."
       echo "       The kernel source tree must not contain a .config file."
       echo "       Remove the .config file and provide it as an input for the derivation."
-      exit 1
+      exit 4
     fi
 
     # Catting so we can write to the config file
@@ -347,28 +364,40 @@ stdenv.mkDerivation (inputArgs // {
     make $makeFlags "''${makeFlagsArray[@]}" oldconfig
     if [ -n "$forceNormalizedConfig" ]; then
       if [ -e $buildRoot/.config.old ]; then
-        # First we strip options that save the exact compiler version.
+        # First we strip options that save the exact compiler version,
+        # and toolchain information.
         # This is first because it will break with cross-compilation.
         # It also will break on minor version bumps.
-        # We do not strip options related to compiler features, since
-        # compiler features changing is something we want to track, I think.
         (
         cd $buildRoot
         for f in .config{,.old}; do
           sed \
             ${concatMapStringsSep " \\\n" (token: "-e '/${token}/d;'") [
               # Keep this sorted
+              "CONFIG_ARCH_SUPPORTS_.*"
               "CONFIG_ARCH_USES_HIGH_VMA_FLAGS"
               "CONFIG_ARM64_AS_HAS_MTE"
+              "CONFIG_ARM64_BTI_KERNEL"
               "CONFIG_ARM64_MTE"
               "CONFIG_ARM64_PTR_AUTH"
               "CONFIG_AS_HAS_CFI_NEGATE_RA_STATE"
               "CONFIG_AS_VERSION"
+              "CONFIG_CC_HAS_.*"
+              "CONFIG_CC_HAVE_.*"
+              "CONFIG_CC_NO_ARRAY_BOUNDS"
               "CONFIG_CC_VERSION_TEXT"
               "CONFIG_CLANG_VERSION"
               "CONFIG_DEBUG_INFO_SPLIT"
+              "CONFIG_GCC_PLUGINS"
+              "CONFIG_GCC_PLUGIN_.*"
               "CONFIG_GCC_VERSION"
+              "CONFIG_HAVE_.*"
+              "CONFIG_INIT_STACK.*"
+              "CONFIG_KCOV"
+              "CONFIG_KCSAN"
               "CONFIG_LD_VERSION"
+              "CONFIG_SHADOW_CALL_STACK"
+              "CONFIG_ZERO_CALL_USED_REGS"
             ]} \
             $f > .tmp$f
         done
@@ -382,7 +411,7 @@ stdenv.mkDerivation (inputArgs // {
           echo '       Use the `bin/kernel-normalize-config` tool to refresh the configuration.'
           echo "       Don't forget to make sure the changed configuration options are good!"
           printf "\n"
-          exit 1
+          exit 3
         fi
         rm -v $buildRoot/.tmp.config{.old,}
       fi
@@ -518,27 +547,40 @@ stdenv.mkDerivation (inputArgs // {
 
   passthru = let
     baseVersion = lib.head (lib.splitString "-rc" version);
+    configUpdater = attrs: kernelDerivation.overrideAttrs({ ... }: ({
+      # This is because we'll use the new output!
+      # So skip the checks.
+      forceNormalizedConfig = false;
+      # Ensure we get new config elements from structured config.
+      updateConfigFromStructuredConfig = true;
+      # Copy the produced config
+      installPhase = ''
+        cp .config $out
+      '';
+      # Skip other phases entirely
+      buildPhase = ":";
+      fixupPhase = ":";
+    } // attrs));
   in {
     # Used by consumers of the kernel derivation to configure the build
     # appropriately for different quirks.
     inherit isQcdt isExynosDT;
 
-    inherit baseVersion;
+    inherit baseVersion modDirVersion;
     kernelOlder = lib.versionOlder baseVersion;
     kernelAtLeast = lib.versionAtLeast baseVersion;
 
     # Used by consumers to refer to the kernel build product.
     file = kernelFile;
 
-    # Derivation with the as-built normalized kernel config
-    normalizedConfig = kernelDerivation.overrideAttrs({ ... }: {
-      forceNormalizedConfig = false;
-      updateConfigFromStructuredConfig = true;
-      buildPhase = "echo Skipping build phase...";
-      installPhase = ''
-        cp .config $out
-      '';
-    });
+    # Used to update the config.
+    normalizedConfig = configUpdater {};
+
+    # Used to fail CI when configs don't pass anymore.
+    validatedConfig  = configUpdater {
+      updateConfigFromStructuredConfig = false;
+      forceNormalizedConfig = true;
+    };
 
     # Patching over this configuration to expose menuconfig.
     menuconfig = kernelDerivation.overrideAttrs({nativeBuildInputs ? [] , ...}: {

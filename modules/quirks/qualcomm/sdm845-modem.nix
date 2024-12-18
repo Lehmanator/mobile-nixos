@@ -33,14 +33,14 @@ in
     quirks.qualcomm.sc7180-modem.enable = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Enable this on a mainline-based SC7180 device for modem/Wi-Fi support
       '';
     };
     quirks.qualcomm.sdm845-modem.enable = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Enable this on a mainline-based SDM845 device for modem support
       '';
     };
@@ -50,7 +50,7 @@ in
     # /run/current-system/sw/share/uncompressed-firmware/qcom/sdm845/
     # This is used by userspace components unaware of the possible xz compression.
     # See also: tqftpserv and pd-mapper patches.
-    environment.pathsToLink = [ "share/uncompressed-firmware" ];
+    environment.pathsToLink = [ "/share/uncompressed-firmware" ];
     # This package added to the environment will select a few firmware path to keep uncompressed.
     environment.systemPackages = [
       (pkgs.callPackage (

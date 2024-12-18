@@ -8,7 +8,7 @@ module Configuration
     end
 
     def is_uefi()
-      @is_uefi ||= File.exists?("/sys/firmware/efi")
+      @is_uefi ||= File.exist?("/sys/firmware/efi")
       @is_uefi
     end
 
@@ -22,7 +22,7 @@ module Configuration
       end
 
       # Then let's try with the device tree compatible.
-      if File.exists?("/proc/device-tree/compatible") then
+      if File.exist?("/proc/device-tree/compatible") then
         # Let's take the most precise compatible name.
         compatible = File.read("/proc/device-tree/compatible").split("\0").first
 
@@ -33,8 +33,12 @@ module Configuration
           return "pine64-pinephone"
         when /^pine64,pinetab/
           return "pine64-pinetab"
+        when /^google,juniper/
+          return "acer-juniper"
         when /^google,krane/
           return "lenovo-krane"
+        when /^google,lazor/
+          return "acer-lazor"
         when /^google,wormdingler/
           return "lenovo-wormdingler"
         when /^google,scarlet/
@@ -45,7 +49,7 @@ module Configuration
 
       # Uh, no device tree? no problem!
       # Let's try and detect the device with its DMI info
-      if File.exists?("/sys/class/dmi/id/product_name")
+      if File.exist?("/sys/class/dmi/id/product_name")
         product_name = File.read("/sys/class/dmi/id/product_name")
         # Bogus example of an UEFI system detection
         #case product_name
@@ -69,7 +73,7 @@ module Configuration
       case identifier
       when "pine64-pinephone", "pine64-pinetab", "pine64-pinephonepro"
         return "u-boot"
-      when "lenovo-krane", "lenovo-wormdingler", "asus-dumo"
+      when "acer-juniper", "acer-lazor", "lenovo-krane", "lenovo-wormdingler", "asus-dumo"
         return "depthcharge"
       end
 
@@ -95,10 +99,10 @@ module Configuration
         when "asus-dumo", "pine64-pinephonepro"
           # RK3399 eMMC
           File.join("/dev/disk/by-path", "platform-fe330000.mmc")
-        when "lenovo-krane"
+        when "acer-juniper", "lenovo-krane"
           # MT8183 eMMC
           File.join("/dev/disk/by-path", "platform-11230000.mmc")
-        when "lenovo-wormdingler"
+        when "acer-lazor", "lenovo-wormdingler"
           # Qualcomm 7c eMMC
           File.join("/dev/disk/by-path", "platform-7c4000.mmc")
         end

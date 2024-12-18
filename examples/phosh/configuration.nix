@@ -1,14 +1,12 @@
 { config, lib, pkgs, ... }:
 
 let
-  inherit (lib) mkForce;
-  system_type = config.mobile.system.type;
-
   defaultUserName = "alice";
 in
 {
   imports = [
     ./phosh.nix
+    ../common-configuration.nix
   ];
 
   config = {

@@ -1,13 +1,17 @@
 { config, lib, pkgs, ... }:
 
-with lib;
-
+let
+  inherit (lib)
+    mkOption
+    types
+  ;
+in
 {
   options.mobile.adbd = {
     enable = mkOption {
       type = types.bool;
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Enables adbd on the device.
       '';
     };
@@ -23,9 +27,9 @@ with lib;
     mobile.boot.stage-1 = {
       usb.features = [ "adb" ];
 
-      extraUtils = with pkgs; [{
-        package = adbd;
-        extraCommand = ''cp -fpv "${glibc.out}"/lib/libnss_files.so.* "$out"/lib/'';
+      extraUtils = [{
+        package = pkgs.adbd;
+        extraCommand = ''cp -fpv "${pkgs.glibc.out}"/lib/libnss_files.so.* "$out"/lib/'';
       }];
     };
 
