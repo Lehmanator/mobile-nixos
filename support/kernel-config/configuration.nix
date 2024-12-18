@@ -168,7 +168,7 @@ in
       # Devices using serial I/O; AT keyboard, PS/2 mouse, etc...
       # Option no since some HID devices may `select` it.
       SERIO = if isx86 then yes else (option no);
-      USB_ONBOARD_HUB = whenAtLeast "6.0" yes;
+      USB_ONBOARD_HUB = whenBetween "6.0" "6.10" yes;
     })
 
     (helpers: with helpers; mkDefaultIze {
@@ -241,6 +241,7 @@ in
       ZRAM = yes;
       ZRAM_DEF_COMP_LZ4 = (whenAtLeast "5.11" yes);
       ZRAM_DEF_COMP = (whenAtLeast "5.11" (freeform ''"lz4"''));
+      ZRAM_BACKEND_LZ4 = (whenAtLeast "6.12" yes);
       ZRAM_WRITEBACK = option yes;
       ZBUD = option yes;
 
@@ -465,7 +466,10 @@ in
 
     # AArch64 specifics
     (mkIf isAarch64 (helpers: with helpers; mkDefaultIze {
-      ARM64_SME = whenAtLeast "5.19" yes;
+      # ARM64_SME was marked as broken in a stable kernel branch and
+      # there seem to be very few CPUs that actually implement this feature.
+      # See https://lore.kernel.org/linux-arm-kernel/173097843612.164342.13696404397428904701.b4-ty@kernel.org/T/
+      ARM64_SME = no;
       ARM64_PSEUDO_NMI = whenAtLeast "5.1" yes;
     }))
   ];

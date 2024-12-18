@@ -85,7 +85,7 @@ in
       USB_DEBUG = { optional = true; tristate = whenOlder "4.18" "n";};
       USB_EHCI_ROOT_HUB_TT = option yes; # Root Hub Transaction Translators
       USB_EHCI_TT_NEWSCHED = option yes; # Improved transaction translator scheduling
-      USB_HIDDEV = yes; # USB Raw HID Devices (like monitor controls and Uninterruptable Power Supplies)
+      USB_HIDDEV = yes; # USB Raw HID Devices (like monitor controls and Uninterruptable Power Supplies)
 
       # security
       FORTIFY_SOURCE                   = option yes;
@@ -183,7 +183,8 @@ in
       BINFMT_SCRIPT = whenAtLeast "3.10" yes;
       BINFMT_MISC   = option yes;
       FW_LOADER_USER_HELPER_FALLBACK = option no;
-      FW_LOADER_COMPRESS = option yes;
+      FW_LOADER_COMPRESS = whenAtLeast "5.3" yes;
+      FW_LOADER_COMPRESS_ZSTD = whenAtLeast "5.19" yes;
       PREEMPT = no;
       PREEMPT_VOLUNTARY = yes;
       SCHED_SMT = yes;
